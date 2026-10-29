@@ -1,3 +1,4 @@
+
 # spp-drill-01: files-api
 
 > **Warning:** this service is **intentionally vulnerable**. It is a practice repo for security platform work. Do not deploy it anywhere public or reuse its code.
@@ -25,5 +26,5 @@ curl "localhost:8080/files?name=report.txt"
 
 | Metric | Before | After |
 | --- | --- | --- |
-| Dependabot alerts | TBD | TBD |
-| Code scanning alerts | TBD | TBD |
+| Dependabot alerts |91 (Critical 7, High 46, Moderate 30, Low 8) | TBD |
+| Code scanning alerts | 1 (Critical) | TBD |
