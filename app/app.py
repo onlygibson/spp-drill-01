@@ -1,7 +1,6 @@
 """files-api: a small internal service for the spp-drill-01 practice repo.
 
-Lists stored files and reports image dimensions. It is intentionally
-vulnerable. Treat it as a service handed to you by a developer team.
+Lists stored files and reports image dimensions.
 """
 import os
 
@@ -22,27 +21,26 @@ def health():
 def file_info():
     """Shows details for one stored file, e.g. /files?name=report.txt"""
     name = request.args.get("name", "")
-    base_dir = os.path.abspath(DATA_DIR)
-    target_path = os.path.abspath(os.path.join(base_dir, name))
+    base_dir = os.path.normpath(os.path.abspath(DATA_DIR))
+    target_path = os.path.normpath(os.path.join(base_dir, name))
 
-    if os.path.commonpath([base_dir, target_path]) != base_dir:
+    # Only allow files inside DATA_DIR (blocks ../ and absolute paths)
+    if not target_path.startswith(base_dir + os.sep):
         return jsonify(output="", error="invalid file path"), 400
 
-    if not os.path.exists(target_path):
+    if not os.path.isfile(target_path):
         return jsonify(output="", error="file not found"), 404
 
     try:
-        lines = []
-        if os.path.isdir(target_path):
-            for entry in os.scandir(target_path):
-                st = entry.stat()
-                lines.append(f"{st.st_mode:o} {st.st_size} {entry.name}")
-        else:
-            st = os.stat(target_path)
-            lines.append(f"{st.st_mode:o} {st.st_size} {os.path.basename(target_path)}")
-        return jsonify(output="\n".join(lines), error="")
-    except OSError as exc:
-        return jsonify(output="", error=str(exc)), 500
+        st = os.stat(target_path)
+    except OSError:
+        app.logger.exception("could not read file info")
+        return jsonify(output="", error="could not read file"), 500
+
+    return jsonify(
+        output=f"{st.st_mode:o} {st.st_size} {os.path.basename(target_path)}",
+        error="",
+    )
 
 
 @app.route("/image-size", methods=["POST"])
