@@ -4,7 +4,6 @@ Lists stored files and reports image dimensions. It is intentionally
 vulnerable. Treat it as a service handed to you by a developer team.
 """
 import os
-import subprocess
 
 from flask import Flask, jsonify, request
 from PIL import Image
@@ -23,13 +22,27 @@ def health():
 def file_info():
     """Shows details for one stored file, e.g. /files?name=report.txt"""
     name = request.args.get("name", "")
-    result = subprocess.run(
-        f"ls -la {DATA_DIR}/{name}",
-        shell=True,
-        capture_output=True,
-        text=True,
-    )
-    return jsonify(output=result.stdout, error=result.stderr)
+    base_dir = os.path.abspath(DATA_DIR)
+    target_path = os.path.abspath(os.path.join(base_dir, name))
+
+    if os.path.commonpath([base_dir, target_path]) != base_dir:
+        return jsonify(output="", error="invalid file path"), 400
+
+    if not os.path.exists(target_path):
+        return jsonify(output="", error="file not found"), 404
+
+    try:
+        lines = []
+        if os.path.isdir(target_path):
+            for entry in os.scandir(target_path):
+                st = entry.stat()
+                lines.append(f"{st.st_mode:o} {st.st_size} {entry.name}")
+        else:
+            st = os.stat(target_path)
+            lines.append(f"{st.st_mode:o} {st.st_size} {os.path.basename(target_path)}")
+        return jsonify(output="\n".join(lines), error="")
+    except OSError as exc:
+        return jsonify(output="", error=str(exc)), 500
 
 
 @app.route("/image-size", methods=["POST"])
