@@ -1,10 +1,8 @@
 """files-api: a small internal service for the spp-drill-01 practice repo.
 
-Lists stored files and reports image dimensions. It is intentionally
-vulnerable. Treat it as a service handed to you by a developer team.
+Lists stored files and reports image dimensions.
 """
 import os
-import subprocess
 
 from flask import Flask, jsonify, request
 from PIL import Image
@@ -23,13 +21,26 @@ def health():
 def file_info():
     """Shows details for one stored file, e.g. /files?name=report.txt"""
     name = request.args.get("name", "")
-    result = subprocess.run(
-        f"ls -la {DATA_DIR}/{name}",
-        shell=True,
-        capture_output=True,
-        text=True,
+    base_dir = os.path.normpath(os.path.abspath(DATA_DIR))
+    target_path = os.path.normpath(os.path.join(base_dir, name))
+
+    # Only allow files inside DATA_DIR (blocks ../ and absolute paths)
+    if not target_path.startswith(base_dir + os.sep):
+        return jsonify(output="", error="invalid file path"), 400
+
+    if not os.path.isfile(target_path):
+        return jsonify(output="", error="file not found"), 404
+
+    try:
+        st = os.stat(target_path)
+    except OSError:
+        app.logger.exception("could not read file info")
+        return jsonify(output="", error="could not read file"), 500
+
+    return jsonify(
+        output=f"{st.st_mode:o} {st.st_size} {os.path.basename(target_path)}",
+        error="",
     )
-    return jsonify(output=result.stdout, error=result.stderr)
 
 
 @app.route("/image-size", methods=["POST"])
